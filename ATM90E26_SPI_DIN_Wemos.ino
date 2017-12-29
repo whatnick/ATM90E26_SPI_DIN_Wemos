@@ -59,6 +59,19 @@ char auth[36] = "THINGSPEAK_KEY";
 #include <Wire.h>
 #endif
 
+//Debug stuff with out debug printing is disabled
+//#define DEBUG
+
+#ifdef DEBUG
+ #define DEBUG_PRINT(x)     Serial.print (x)
+ #define DEBUG_PRINTDEC(x)     Serial.print (x, DEC)
+ #define DEBUG_PRINTLN(x)  Serial.println (x)
+#else
+ #define DEBUG_PRINT(x)
+ #define DEBUG_PRINTDEC(x)
+ #define DEBUG_PRINTLN(x)
+#endif 
+
 U8G2_SSD1306_64X48_ER_F_HW_I2C u8g2(U8G2_R0);   // EastRising 0.66" OLED breakout board, Uno: A4=SDA, A5=SCL, 5V powered
 
 #define whatnick_logo_width 64
@@ -100,7 +113,7 @@ ATM90E26_SPI eic2(D3);
 
 //callback notifying us of the need to save config
 void saveConfigCallback () {
-  Serial.println("Should save config");
+  DEBUG_PRINTLN("Should save config");
   shouldSaveConfig = true;
 }
 
@@ -110,16 +123,16 @@ void readTSConfig()
   //SPIFFS.format();
 
   //read configuration from FS json
-  //Serial.println("mounting FS...");
+  //DEBUG_PRINTLN("mounting FS...");
 
   if (SPIFFS.begin()) {
-    //Serial.println("mounted file system");
+    //DEBUG_PRINTLN("mounted file system");
     if (SPIFFS.exists("/config.json")) {
       //file exists, reading and loading
-      //Serial.println("reading config file");
+      //DEBUG_PRINTLN("reading config file");
       File configFile = SPIFFS.open("/config.json", "r");
       if (configFile) {
-        //Serial.println("opened config file");
+        //DEBUG_PRINTLN("opened config file");
         size_t size = configFile.size();
         // Allocate a buffer to store contents of the file.
         std::unique_ptr<char[]> buf(new char[size]);
@@ -129,16 +142,16 @@ void readTSConfig()
         JsonObject& json = jsonBuffer.parseObject(buf.get());
         json.printTo(Serial);
         if (json.success()) {
-          //Serial.println("\nparsed json");
+          //DEBUG_PRINTLN("\nparsed json");
           strcpy(auth, json["auth"]);
       strcpy(server, json["server"]);
         } else {
-          //Serial.println("failed to load json config");
+          //DEBUG_PRINTLN("failed to load json config");
         }
       }
     }
   } else {
-    //Serial.println("failed to mount FS");
+    //DEBUG_PRINTLN("failed to mount FS");
   }
   //end read
 }
@@ -147,14 +160,14 @@ void saveTSConfig()
 {
   //save the custom parameters to FS
   if (shouldSaveConfig) {
-    //Serial.println("saving config");
+    //DEBUG_PRINTLN("saving config");
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
     json["auth"] = auth;
   json["server"] = server;
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) {
-      //Serial.println("failed to open config file for writing");
+      //DEBUG_PRINTLN("failed to open config file for writing");
     }
 
     json.printTo(Serial);
@@ -165,9 +178,12 @@ void saveTSConfig()
 }
 
 void setup() {
+
+  #ifdef DEBUG
   /* Initialize the serial port to host */
   Serial.begin(115200);
-
+  #endif
+  
   //Read previous config
   readTSConfig();
   
@@ -192,11 +208,11 @@ void setup() {
   wifiManager.autoConnect("EnergyMonitor", "whatnick");
 
   //if you get here you have connected to the WiFi
-  Serial.println("connected...yeey :)");
-  Serial.print("Key:");
-  Serial.println(auth);
-  Serial.print("Server:");
-  Serial.println(server);
+  DEBUG_PRINTLN("connected...yeey :)");
+  DEBUG_PRINT("Key:");
+  DEBUG_PRINTLN(auth);
+  DEBUG_PRINT("Server:");
+  DEBUG_PRINTLN(server);
 
   //read updated parameters
   strcpy(auth, custom_ts_token.getValue());
@@ -219,6 +235,7 @@ void setup() {
   } while ( u8g2.nextPage() );
   u8g2.setFont(u8g2_font_5x8_tr);
   delay(1000);
+
   /*Initialise the ATM90E26 + SPI port */
   eic1.SetLGain(0x240b);
   eic1.SetUGain(0x6810);
@@ -237,6 +254,7 @@ void setup() {
 }
 
 float v1,i1,r1,pf1,v2,i2,r2,pf2;
+short st1,st2;
 long curMillis, prevMillis;
 
 void loop() {
@@ -250,11 +268,13 @@ void loop() {
   }
   if((curMillis - prevMillis) > 1000)
   {
+    st1 = eic1.GetMeterStatus();
     v1=eic1.GetLineVoltage();
     i1=eic1.GetLineCurrent();
     r1=eic1.GetActivePower();
     pf1=eic1.GetPowerFactor();
-  
+
+    st2 = eic2.GetMeterStatus();
     v2=eic2.GetLineVoltage();
     i2=eic2.GetLineCurrent();
     r2=eic2.GetActivePower();
@@ -263,29 +283,35 @@ void loop() {
     u8g2.clearDisplay();
     u8g2.firstPage();
     do {
-      u8g2.drawStr(0, 10,"V:");
-      u8g2.setCursor(12,10);
+      u8g2.drawStr(0, 9,"V:");
+      u8g2.setCursor(12,9);
       u8g2.print(v1,1);
-      u8g2.setCursor(40,10);
+      u8g2.setCursor(40,9);
       u8g2.print(v2,1);
   
-      u8g2.drawStr(0,20,"I:");
-      u8g2.setCursor(12,20);
+      u8g2.drawStr(0,18,"I:");
+      u8g2.setCursor(12,18);
       u8g2.print(i1,2);
-      u8g2.setCursor(40,20);
+      u8g2.setCursor(40,18);
       u8g2.print(i2,2);
   
-      u8g2.drawStr(0,30,"P:");
-      u8g2.setCursor(12,30);
+      u8g2.drawStr(0,27,"P:");
+      u8g2.setCursor(12,27);
       u8g2.print(r1,0);
-      u8g2.setCursor(40,30);
+      u8g2.setCursor(40,27);
       u8g2.print(r2,0);
   
-      u8g2.drawStr(0,40,"F:");
-      u8g2.setCursor(12,40);
+      u8g2.drawStr(0,36,"F:");
+      u8g2.setCursor(12,36);
       u8g2.print(pf1,2);
-      u8g2.setCursor(40,40);
+      u8g2.setCursor(40,36);
       u8g2.print(pf2,2);
+
+      u8g2.drawStr(0,45,"ST:");
+      u8g2.setCursor(12,45);
+      u8g2.print(st1);
+      u8g2.setCursor(40,45);
+      u8g2.print(st2);
       
     }while ( u8g2.nextPage() );
     prevMillis = curMillis;
