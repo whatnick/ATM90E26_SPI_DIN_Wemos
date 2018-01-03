@@ -60,7 +60,7 @@ char auth[36] = "THINGSPEAK_KEY";
 #endif
 
 //Debug stuff with out debug printing is disabled
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
  #define DEBUG_PRINT(x)     Serial.print (x)
@@ -110,6 +110,12 @@ static unsigned char whatnick_logo_bits[] = {
 
 ATM90E26_SPI eic1(D8);
 ATM90E26_SPI eic2(D3);
+
+//Variables and timers
+float v1,i1,r1,pf1,v2,i2,r2,pf2;
+short st1,st2;
+int sampleCount = 0;
+long curMillis, prevMillis;
 
 //callback notifying us of the need to save config
 void saveConfigCallback () {
@@ -242,6 +248,12 @@ void setup() {
   eic1.SetIGain(0x7644);
   eic1.SetCRC1(0x410D);
   eic1.SetCRC2(0x0FD7);
+  int stat1 = eic1.GetMeterStatus();
+  DEBUG_PRINT("Meter 1 Status:");
+  DEBUG_PRINTLN(stat1);
+  eic1.InitEnergyIC();
+  //Hack meter 1 needs to initialized twice some SPI bus startup bug on ESP8266.
+  delay(100);
   eic1.InitEnergyIC();
 
   eic2.SetLGain(0x240b);
@@ -249,25 +261,19 @@ void setup() {
   eic2.SetIGain(0x7644);
   eic2.SetCRC1(0x410D);
   eic2.SetCRC2(0x30E6);
+  int stat2 = eic1.GetMeterStatus();
+  DEBUG_PRINT("Meter 2 Status:");
+  DEBUG_PRINTLN(stat2);
   eic2.InitEnergyIC();
   
 }
 
-float v1,i1,r1,pf1,v2,i2,r2,pf2;
-short st1,st2;
-long curMillis, prevMillis;
+void sendThingSpeak(){
+  
+}
 
-void loop() {
-  /*Repeatedly fetch some values from the ATM90E26 */
-  curMillis = millis();
-  httpServer.handleClient();
-  yield();
-  if((curMillis - prevMillis) > 500)
-  {
-    u8g2.clearDisplay();
-  }
-  if((curMillis - prevMillis) > 1000)
-  {
+void readMeterDisplay()
+{
     st1 = eic1.GetMeterStatus();
     v1=eic1.GetLineVoltage();
     i1=eic1.GetLineCurrent();
@@ -315,5 +321,25 @@ void loop() {
       
     }while ( u8g2.nextPage() );
     prevMillis = curMillis;
+}
+
+void loop() {
+  /*Repeatedly fetch some values from the ATM90E26 */
+  curMillis = millis();
+  httpServer.handleClient();
+  yield();
+  if(sampleCount>20)
+  {
+    sendThingSpeak();
+    sampleCount = 0;
+  }
+  if((curMillis - prevMillis) > 500)
+  {
+    u8g2.clearDisplay();
+  }
+  if((curMillis - prevMillis) > 1000)
+  {
+    readMeterDisplay();
+    sampleCount++;
   }
 }
