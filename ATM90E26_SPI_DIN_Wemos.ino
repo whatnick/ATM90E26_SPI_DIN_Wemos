@@ -62,7 +62,7 @@ WiFiClient client;
 #endif
 
 //Debug stuff with out debug printing is disabled
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_PRINT(x)     Serial.print (x)
@@ -215,6 +215,7 @@ void setup() {
 
   //first parameter is name of access point, second is the password
 #ifndef DEBUG
+  wifiManager.setConfigPortalTimeout(180);
   wifiManager.autoConnect("EnergyMonitor", "whatnick");
 #else
   wifiManager.startConfigPortal("EnergyMonitor", "whatnick");
