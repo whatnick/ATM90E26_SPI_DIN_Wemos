@@ -213,12 +213,24 @@ void setup() {
   wifiManager.addParameter(&custom_ts_token);
   wifiManager.addParameter(&custom_server);
 
+  //Show logo while wifi is set-up
+  u8g2.begin();
+
+  u8g2.firstPage();
+  do {
+    u8g2.drawXBM(0, 0, 64, 45, whatnick_logo_bits);
+  } while ( u8g2.nextPage() );
+  u8g2.setFont(u8g2_font_5x8_tr);
+
+  String ap_name_str = "EMON_"+String(system_get_chip_id(),HEX);
+  char ap_name[12];
+  ap_name_str.toCharArray(ap_name,12);
   //first parameter is name of access point, second is the password
 #ifndef DEBUG
   wifiManager.setConfigPortalTimeout(180);
-  wifiManager.autoConnect("EnergyMonitor", "whatnick");
+  wifiManager.autoConnect(ap_name, "whatnick");
 #else
-  wifiManager.startConfigPortal("EnergyMonitor", "whatnick");
+  wifiManager.startConfigPortal(ap_name, "whatnick");
 #endif
 
   //if you get here you have connected to the WiFi
@@ -240,15 +252,6 @@ void setup() {
   httpServer.begin();
 
   MDNS.addService("http", "tcp", 80);
-
-  u8g2.begin();
-
-  u8g2.firstPage();
-  do {
-    u8g2.drawXBM(0, 0, 64, 45, whatnick_logo_bits);
-  } while ( u8g2.nextPage() );
-  u8g2.setFont(u8g2_font_5x8_tr);
-  delay(1000);
 
   /*Initialise the ATM90E26 + SPI port */
   eic1.SetLGain(0x240b);
@@ -273,7 +276,7 @@ void setup() {
   DEBUG_PRINT("Meter 2 Status:");
   DEBUG_PRINTLN(stat2);
   eic2.InitEnergyIC();
-
+  delay(1000);
 }
 
 void sendThingSpeak() {
