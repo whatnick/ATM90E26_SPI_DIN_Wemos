@@ -46,15 +46,15 @@ std::unique_ptr<ESP8266WebServer> server; //Define webserver
   char ts_auth[36] = "THINGSPEAK_KEY";// Sign up on thingspeak and get WRITE API KEY.
   
   //Calibration
-  uint32_t eic1_ugain=26640;
-  uint32_t eic1_igain=30276;
-  uint32_t eic1_CRC1=16653;
-  uint32_t eic1_CRC2=4055;
+  uint32_t eic1_ugain=0x6810;
+  uint32_t eic1_igain=0x7644;
+  uint32_t eic1_CRC1=0x410D;
+  uint32_t eic1_CRC2=0x0FD7;
   
-  uint32_t eic2_ugain=26400;
-  uint32_t eic2_igain=30276;
-  uint32_t eic2_CRC1=16653;
-  uint32_t eic2_CRC2=12518;
+  uint32_t eic2_ugain=0x6720;
+  uint32_t eic2_igain=0x7644;
+  uint32_t eic2_CRC1=0x410D;
+  uint32_t eic2_CRC2=0x30E6;
   
   
 
