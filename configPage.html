@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+</head>
+<body>
+<style type="text/css">
+    #content {
+        text-align: center ;
+        width: 700px ;
+        margin-left: auto ;
+        margin-right: auto ;
+    }
+    body{font-family: verdana,arial,sans-serif;}
+    table.gridtable {
+        margin: 0px auto;
+        font-size:18px;
+        color:#333333;
+        border-width: 1px;
+        border-collapse: collapse;
+    }
+    table.gridtable th {
+        border-width: 1px;
+        padding: 8px;
+        border-style: solid;
+        background-color: #dedede;
+    }
+    table.gridtable td {
+        border-width: 1px;
+        padding: 8px;
+        border-style: solid;
+        background-color: #ffffff;
+    }
+</style>
+<div id="content">
+<h1>WhatNick Energymon Config</h1>
+<form id="mainForm" method="get" action="/set">
+    <h2>Wifi Settings:</h2>
+<table class="gridtable" >
+    <tr><th>SSID</th><th>RSSI</th></tr>
+    <tbody ID="netTableBody">
+
+    </tbody>
+</table>
+<br>
+
+SSID:<input id="txt_ssid" type="text" name="wifi_ssid" />
+
+Password:<input type="text" name="wifi_password" />
+<br>
+
+<h2>Other Options:</h2>
+<br>
+
+
+</form>
+</div>
+</body>
+
+<script>
+    var netArray = ["NEt1","NEt2","Net 1234 ","BSOD","Liuntless"];
+    var rSSI=["1","2","4","7","4"];
+    var optionals={"eic2_CRC2":0,"eic2_CRC1":2,"eic2_gain":3,"eic2_ugain":7,"eic1_CRC2":0,"eic1_CRC1":2,"eic1_gain":3,"eic1_ugain":7,"ts_auth":"dd","ts_server":"aaa.com"};
+
+    var arrayLength = netArray.length;
+    var tblBody=document.getElementById("netTableBody");
+    var tableText="";
+
+    for (var i = 0; i < arrayLength; i++) {
+        var text="<tr><td><a id="+i+" onClick='reply_click(this.id)' href=#>"+netArray[i]+"</a></td><td>"+rSSI[i]+"</td></tr>";
+        tableText=tableText+text;
+    }
+    tblBody.innerHTML=tableText;
+
+    function reply_click(clicked_id)
+    {
+        document.getElementById("txt_ssid").value=netArray[clicked_id];
+    }
+
+    var form=document.getElementById("mainForm");
+
+    for (var k in optionals){
+        if (optionals.hasOwnProperty(k)) {
+            newoption=k+ "<input type=text name="+k+" value='"+optionals[k]+"'><br>";
+            form.insertAdjacentHTML('beforeend',newoption);
+
+        }
+    }
+    form.insertAdjacentHTML("beforeend","<br><input value=Save type=submit>");
+    form.insertAdjacentHTML("beforeend","<br><a href='/update'>Click here to upload new firmware</a>");
+
+</script>
+</html>
+
+
