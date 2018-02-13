@@ -120,9 +120,9 @@ static unsigned char whatnick_logo_bits[] = {
 void setup() {
   Serial.begin(115200);
   delay(10);
-  Serial.println();
-  Serial.println();
-  Serial.println("Booting...");
+  DEBUG_PRINTLN();
+  DEBUG_PRINTLN();
+  DEBUG_PRINTLN("Booting...");
   
   //Show logo while wifi is set-up
   u8g2.begin();
@@ -156,7 +156,7 @@ void loop() {
   yield();
   if (sampleCount > 20)
   {
-//    sendThingSpeak();
+    sendThingSpeak();
     sampleCount = 0;
   }
   if ((curMillis - prevMillis) > 500)
@@ -174,16 +174,67 @@ void loop() {
 
 void checkPins(){
   if(!digitalRead(D4)){     //If button B on the oled is pressed, format the SPI file system and reset the unit - AKA Factory reset
-    Serial.println("Reset pin pressed, Formatting");
+    DEBUG_PRINTLN("Reset pin pressed, Formatting");
     SPIFFS.format();
-    Serial.println("Resetting unit");
+    DEBUG_PRINTLN("Resetting unit");
     ESP.reset();
   }
 }
 
 
 
+void sendThingSpeak() {
+  //TODO: Compute averages from last n-readings
+  float Vrms1 = v1;
+  float realPower1 = r1;
+  float Crms1 = i1;
+  float powerFactor1 = pf1;
 
+  float Vrms2 = v2;
+  float realPower2 = r2;
+  float Crms2 = i2;
+  float powerFactor2 = pf2;
+  if(WiFi.status() == WL_CONNECTED)
+  {
+     WiFiClient client;
+    const int httpPort = 80;
+    if (!client.connect(ts_server, 80)) {
+      DEBUG_PRINTLN("connection failed");
+      return;
+    }
+    //if (client.connect(ts_server, 80)) { //   "184.106.153.149" or api.thingspeak.com
+      String postStr = String(ts_auth);
+      postStr += "&field1=";
+      postStr += String(Vrms1);
+      postStr += "&field2=";
+      postStr += String(realPower1);
+      postStr += "&field3=";
+      postStr += String(Crms1);
+      postStr += "&field4=";
+      postStr += String(powerFactor1);
+      postStr += "&field5=";
+      postStr += String(Vrms2);
+      postStr += "&field6=";
+      postStr += String(realPower2);
+      postStr += "&field7=";
+      postStr += String(Crms2);
+      postStr += "&field8=";
+      postStr += String(powerFactor2);
+      postStr += "\r\n\r\n";
+  
+      client.print("POST /update HTTP/1.1\n");
+      client.print("Host: api.thingspeak.com\n");
+      client.print("Connection: close\n");
+      client.print("X-THINGSPEAKAPIKEY: " + String(ts_auth) + "\n");
+      client.print("Content-Type: application/x-www-form-urlencoded\n");
+      client.print("Content-Length: ");
+      client.print(postStr.length());
+      client.print("\n\n");
+      client.print(postStr);
+    //}
+    client.stop();
+  }
+}
 
 
 
@@ -319,7 +370,7 @@ void wifi_attemptToConnect(){
     }
 
     //Give up after 10 attempts and boot the softAP
-    if(loopcount>10){
+    if(loopcount>20){
       DEBUG_PRINTLN("Unable to connect to configured network, starting AP");
       wifi_startSoftAP();
       tryAgain=false;   //Dont run this loop again
@@ -338,13 +389,13 @@ void wifi_attemptToConnect(){
 
 void wifi_startSoftAP(){
   String ap_name_str = "EMON_"+String(system_get_chip_id(),HEX);
-  Serial.print("Configuring access point on SSID:");
-  Serial.println(ap_name_str);
+  DEBUG_PRINT("Configuring access point on SSID:");
+  DEBUG_PRINTLN(ap_name_str);
   WiFi.softAP(ap_name_str.c_str());  //No password
   
   IPAddress myIP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(myIP);
+  DEBUG_PRINT("AP IP address: ");
+  DEBUG_PRINTLN(myIP);
   setupWebserver();
 }
 
@@ -416,6 +467,11 @@ void http_handleRoot() {
   webPage +=eic1_igain;
   webPage +=",\"eic1_ugain\":";
   webPage +=eic1_ugain;
+
+  webPage +=",\"ts_auth\":";
+  webPage +="\""+String(ts_auth)+"\"";
+  webPage +=",\"ts_server\":";
+  webPage +="\""+String(ts_server)+"\"";
   
   webPage +="};";
   
@@ -439,64 +495,64 @@ void http_handleRoot() {
 void http_handleSet(){
   if(strlen(server->arg("ts_auth").c_str())){
       strlcpy(ts_auth, server->arg("ts_auth").c_str(), sizeof(ts_auth));  
-      Serial.print("Setting ts_auth to:");
-      Serial.println(ts_auth);
+      DEBUG_PRINT("Setting ts_auth to:");
+      DEBUG_PRINTLN(ts_auth);
     }
     
     if(strlen(server->arg("wifi_ssid").c_str())){
       strlcpy(wifi_ssid, server->arg("wifi_ssid").c_str(), sizeof(wifi_ssid));  
-      Serial.print("Setting wifi_ssid to:");
-      Serial.println(wifi_ssid);
+      DEBUG_PRINT("Setting wifi_ssid to:");
+      DEBUG_PRINTLN(wifi_ssid);
     } 
 
     if(strlen(server->arg("wifi_password").c_str())){
       strlcpy(wifi_password, server->arg("wifi_password").c_str(), sizeof(wifi_password));  
-      Serial.print("Setting wifi_password to:");
-      Serial.println(wifi_password);
+      DEBUG_PRINT("Setting wifi_password to:");
+      DEBUG_PRINTLN(wifi_password);
     } 
 
 
     if(strlen(server->arg("eic2_ugain").c_str())){
        eic2_ugain = atoi(server->arg("eic2_ugain").c_str());
-       Serial.print("Setting eic2_ugain to:");
-       Serial.println(eic2_ugain);
+       DEBUG_PRINT("Setting eic2_ugain to:");
+       DEBUG_PRINTLN(eic2_ugain);
     }
     if(strlen(server->arg("eic2_igain").c_str())){
        eic2_igain = atoi(server->arg("eic2_igain").c_str());
-       Serial.print("Setting eic2_igain to:");
-       Serial.println(eic2_igain);
+       DEBUG_PRINT("Setting eic2_igain to:");
+       DEBUG_PRINTLN(eic2_igain);
     }
     if(strlen(server->arg("eic2_CRC1").c_str())){
        eic2_CRC1 = atoi(server->arg("eic2_CRC1").c_str());
-       Serial.print("Setting eic2_CRC1 to:");
-       Serial.println(eic2_CRC1);
+       DEBUG_PRINT("Setting eic2_CRC1 to:");
+       DEBUG_PRINTLN(eic2_CRC1);
     }
     if(strlen(server->arg("eic2_CRC2").c_str())){
        eic2_CRC2 = atoi(server->arg("eic2_CRC2").c_str());
-       Serial.print("Setting eic2_CRC2 to:");
-       Serial.println(eic2_CRC2);
+       DEBUG_PRINT("Setting eic2_CRC2 to:");
+       DEBUG_PRINTLN(eic2_CRC2);
     }            
 
   
     if(strlen(server->arg("eic1_ugain").c_str())){
        eic1_ugain = atoi(server->arg("eic1_ugain").c_str());
-       Serial.print("Setting eic1_ugain to:");
-       Serial.println(eic1_ugain);
+       DEBUG_PRINT("Setting eic1_ugain to:");
+       DEBUG_PRINTLN(eic1_ugain);
     }
     if(strlen(server->arg("eic1_igain").c_str())){
        eic1_igain = atoi(server->arg("eic1_igain").c_str());
-       Serial.print("Setting eic1_igain to:");
-       Serial.println(eic1_igain);
+       DEBUG_PRINT("Setting eic1_igain to:");
+       DEBUG_PRINTLN(eic1_igain);
     }
     if(strlen(server->arg("eic1_CRC1").c_str())){
        eic1_CRC1 = atoi(server->arg("eic1_CRC1").c_str());
-       Serial.print("Setting eic1_CRC1 to:");
-       Serial.println(eic1_CRC1);
+       DEBUG_PRINT("Setting eic1_CRC1 to:");
+       DEBUG_PRINTLN(eic1_CRC1);
     }
     if(strlen(server->arg("eic1_CRC2").c_str())){
        eic1_CRC2 = atoi(server->arg("eic1_CRC2").c_str());
-       Serial.print("Setting eic1_CRC2 to:");
-       Serial.println(eic1_CRC2);
+       DEBUG_PRINT("Setting eic1_CRC2 to:");
+       DEBUG_PRINTLN(eic1_CRC2);
     } 
 
 
@@ -547,7 +603,7 @@ void setupWebserver(){
   http_setupUpdate();
   
   server->begin();
-  Serial.println("HTTP server started");
+  DEBUG_PRINTLN("HTTP server started");
  
 }
 
