@@ -1,0 +1,172 @@
+<html>
+
+<head>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .a,
+        .c {
+            flex: none;
+            margin: 10px;
+        }
+
+        .b {
+            overflow-y: hidden;
+            flex: auto;
+            margin: 0 10px;
+            border: 1px solid black;
+        }
+
+        label {
+            min-width: 120px;
+            display: inline-block;
+        }
+
+        #h {
+            height: 100%;
+            width: 100%;
+            border: none;
+            white-space: pre;
+        }
+    </style>
+</head>
+
+<body>
+<div class="a">
+    <label for="varName">Variable Name:</label>
+    <input type="text" id="varName" value="webPage">
+    <br>
+    <label for="chunkSize">Chunk Size:</label>
+    <input type="text" id="chunkSize" value="75">
+    <br>
+    <label for="isCut">Cut?</label>
+    <input id="isCut" type="checkbox" checked></input>
+    <br>
+    <br> Copy and paste html .. or select html file:
+    <input type="file" id="inFile" onclick="reset(); this.value = null" ; onchange="processFile(this, event)"></input>
+    <br>
+    <br> Then,
+    <button id="btnMin" onclick="m()">Minifiy</button> ..then,
+    <button id="btnTest" onclick="test()" disabled>Test</button> (on IE, this opens a Save/Open dialog. On Chrome, this opens a new tab)
+</div>
+<div class="b">
+    <textarea contenteditable="true" id="h"></textarea>
+</div>
+<div class="c">
+    <button onclick="reset()">Reset</button>
+    <span id="savings"></span>
+</div>
+<script>
+    var uncut = "";
+    var orig = "";
+    function getValue(selector) {
+        return document.querySelector(selector).value;
+    }
+    function setInnerText(selector, val) {
+        document.querySelector(selector).innerText = val || "";
+    }
+    function setValue(selector, val) {
+        document.querySelector(selector).value = val;
+    }
+    function disableDom(selector) {
+        document.querySelector(selector) && (document.querySelector(selector).disabled = true);
+    }
+    function enableDom(selector) {
+        document.querySelector(selector) && (document.querySelector(selector).disabled = false);
+    }
+    function getSizeInKb(str) {
+        var m = encodeURIComponent(str).match(/%[89ABab]/g);
+        return (str.length + (m ? m.length : 0)) / 1000;
+    }
+    function reset() {
+        setValue("#h", null);
+        setValue("#inFile", null);
+        uncut = "";
+        orig = "";
+        disableDom("#btnTest");
+        enableDom("#btnMin");
+        setInnerText("#savings", "");
+    }
+    function round(num) {
+        return Math.round(num * 100) / 100;
+    }
+    function minify(s) {
+        orig = s;
+        var isCut = document.querySelector("#isCut").checked;
+        var varName = getValue("#varName") || "webPage";
+        var replaced = s
+        /* Remove comments (both html and js comments) */
+            .replace(/((<!--[\s\S]*?(?:-->)?<!---+>?|<!(?![dD][oO][cC][tT][yY][pP][eE]|\[CDATA\[)[^>]*>?|<[?][^>]*>?)|(\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$))/g, "")
+    .replace(/"/g, '\"')        /* Escape quote */
+        .replace(/\s\s+/g, " ")     /* Replace double spaces with a single space */
+        .replace("\r", "")          /* Remove carriage returns */
+        .replace("\n", "")          /* Remove new lines */
+        .replace(/\s*\(\s*/g, "(")  /* Remove space before and after ( */
+        .replace(/\s*\)\s*/g, ")")  /* Remove space before and after ) */
+        .replace(/\s*{\s*/g, "{")   /* Remove space before and after { */
+        .replace(/\s*}\s*/g, "}")   /* Remove space before and after { */
+        .replace(/\s*=\s*/g, "=")   /* Remove space before and after = */
+        .replace(/\s*:\s*/g, ":")   /* Remove space before and after : */
+        .replace(/\s*;\s*/g, ";")   /* Remove space before and after ; */
+        .replace(/\s*,\s*/g, ",")   /* Remove space before and after , */
+        .replace(/\s*>\s*/g, ">")   /* Remove space before and after > */
+        .replace(/\s*<\s*/g, "<")   /* Remove space before and after < */
+    ;
+    uncut = replaced;
+
+    if (isCut) {
+        var chunkSize = getValue("#chunkSize") || 75;
+        var chunker = new RegExp(".{1," + chunkSize + "}", "g");
+        var chunks = replaced.match(chunker);
+        replaced = chunks.join("\";\r\n" + varName + " += \"");
+    }
+    enableDom("#btnTest");
+    disableDom("#btnMin");
+
+    var origSize = round(getSizeInKb(orig));
+    var replacedSize = round(getSizeInKb(replaced));
+    var diff = round(origSize - replacedSize);
+    var percentage = round(diff / origSize) * 100;
+    var savings = "Orig(" + origSize + "kb) - Minified(" + replacedSize + "kb) = " + diff + "kb (" + percentage + "% saved!)";
+    setInnerText("#savings", savings);
+    return varName + '  = "' + replaced + '";'
+    }
+
+    function m(s) {
+        setValue("#h", minify(getValue("#h")));
+    }
+    function processFile(source, event) {
+        var file = (event.target.files && event.target.files[0]) || null;
+        var fileReader = new FileReader();
+        fileReader.onload = function (e) {
+            var contents = e.target.result;
+            setValue("#h", contents);
+        }
+        fileReader.readAsText(file);
+    }
+    function test() {
+        /* create blob */
+        var b = new Blob(
+            [uncut],
+            { type: 'text/html' }
+        );
+
+        if (window.navigator.msSaveOrOpenBlob) {
+            window.navigator.msSaveOrOpenBlob(b, "test.html");
+        } else {
+            window.open(URL.createObjectURL(b));
+        }
+    }
+</script>
+</body>
+
+</html>
