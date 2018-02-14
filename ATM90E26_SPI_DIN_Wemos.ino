@@ -498,6 +498,12 @@ void http_handleSet(){
       DEBUG_PRINT("Setting ts_auth to:");
       DEBUG_PRINTLN(ts_auth);
     }
+
+    if(strlen(server->arg("ts_server").c_str())){
+      strlcpy(ts_server, server->arg("ts_server").c_str(), sizeof(ts_server));  
+      DEBUG_PRINT("Setting ts_server to:");
+      DEBUG_PRINTLN(ts_server);
+    }
     
     if(strlen(server->arg("wifi_ssid").c_str())){
       strlcpy(wifi_ssid, server->arg("wifi_ssid").c_str(), sizeof(wifi_ssid));  
