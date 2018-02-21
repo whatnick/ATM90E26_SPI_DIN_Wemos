@@ -19,7 +19,7 @@
 #include <ArduinoJson.h>  //Config storage
 #include <ESP8266WebServer.h>
 #include <SPI.h>
-#include "energyic_SPI.h"     //SPI Metering Chip - https://github.com/whatnick/ATM90E36_Arduino
+#include "energyic_SPI.h"     //SPI Metering Chip - https://github.com/whatnick/ATM90E26_Arduino
 
 #include <U8g2lib.h>      //OLED Driver
 #ifdef U8X8_HAVE_HW_SPI
