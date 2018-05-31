@@ -13,11 +13,31 @@
 */
 
 #define DEBUG 1
-
-#include <ESP8266WiFi.h>
 #include <FS.h> 
-#include <ArduinoJson.h>  //Config storage
+
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+std::unique_ptr<ESP8266WebServer> server; //Define webserver
+extern "C" {
+  #include "user_interface.h" //Enables system_get_chip_id used in SoftAP mode
+}
+#endif
+
+#if defined(ESP32)
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include "SPIFFS.h"
+#include <Update.h>
+std::unique_ptr<WebServer> server; //Define webserver //https://github.com/bbx10/WebServer_tng
+#endif
+
+#include <ArduinoJson.h>  //Config storage
+
 #include <SPI.h>
 #include "energyic_SPI.h"     //SPI Metering Chip - https://github.com/whatnick/ATM90E26_Arduino
 
@@ -29,12 +49,8 @@
 #include <Wire.h>
 #endif
 
-extern "C" {
-  #include "user_interface.h" //Enables system_get_chip_id used in SoftAP mode
-}
 
 
-std::unique_ptr<ESP8266WebServer> server; //Define webserver
 
 //-----Config variables-----
   //Wifi
@@ -71,9 +87,24 @@ std::unique_ptr<ESP8266WebServer> server; //Define webserver
 #define DEBUG_PRINTLN(x)
 #endif
 
+
+//Pin rename map for MHT-ESP32
+#if defined(ESP32)
+#define D1  22
+#define D2  21
+#define D3  17
+#define D4  16
+#define D0  26
+#define D5  18
+#define D6  19
+#define D7  23
+#define D8  5
+#endif
+
 //Metering variables and timers
 ATM90E26_SPI eic1(D8);
 ATM90E26_SPI eic2(D3);
+
 float v1, i1, r1, pf1, v2, i2, r2, pf2;
 short st1, st2;
 int sampleCount = 0;
@@ -119,6 +150,9 @@ static unsigned char whatnick_logo_bits[] = {
 
 void setup() {
   Serial.begin(115200);
+  #if defined(ESP32)
+  pinMode(D4,INPUT_PULLUP);
+  #endif
   delay(10);
   DEBUG_PRINTLN();
   DEBUG_PRINTLN();
@@ -173,11 +207,11 @@ void loop() {
 
 
 void checkPins(){
-  if(!digitalRead(D4)){     //If button B on the oled is pressed, format the SPI file system and reset the unit - AKA Factory reset
-    DEBUG_PRINTLN("Reset pin pressed, Formatting");
+  if(!digitalRead(D4)){     //If button B on the oled is pressed, format the SPI file system and restart the unit - AKA Factory restart
+    DEBUG_PRINTLN("restart pin pressed, Formatting");
     SPIFFS.format();
-    DEBUG_PRINTLN("Resetting unit");
-    ESP.reset();
+    DEBUG_PRINTLN("restartting unit");
+    ESP.restart();
   }
 }
 
@@ -332,8 +366,8 @@ void saveTSConfig()
   json.printTo(configFile);
   configFile.close();
   //end save
-  DEBUG_PRINTLN("Resetting");
-  ESP.reset();
+  DEBUG_PRINTLN("restartting");
+  ESP.restart();
 
 }
 
@@ -388,7 +422,14 @@ void wifi_attemptToConnect(){
 
 
 void wifi_startSoftAP(){
-  String ap_name_str = "EMON_"+String(system_get_chip_id(),HEX);
+  uint32_t chipid;
+  #if defined(ESP32)
+  chipid=ESP.getEfuseMac();
+  #endif
+  #if defined(ESP8266)
+  chipid=system_get_chip_id();
+  #endif
+  String ap_name_str = "EMON_"+String(chipid,HEX);
   DEBUG_PRINT("Configuring access point on SSID:");
   DEBUG_PRINTLN(ap_name_str);
   WiFi.softAP(ap_name_str.c_str());  //No password
@@ -401,9 +442,9 @@ void wifi_startSoftAP(){
 
 
 void http_handleReset(){
-  server->send(200, "text/plain","Resetting...");
-  DEBUG_PRINTLN("Resetting");
-  ESP.reset();
+  server->send(200, "text/plain","restartting...");
+  DEBUG_PRINTLN("restartting");
+  ESP.restart();
 }
 
 
@@ -593,7 +634,13 @@ void setupWebserver(){
   DEBUG_PRINTLN("Starting webserver...");
   
   //Setup the runtime webserver
+  #if defined(ESP8266)
   server.reset(new ESP8266WebServer(WiFi.localIP(), 80));
+  #endif
+
+  #if defined(ESP32)
+  server.reset(new WebServer(WiFi.localIP(), 80));
+  #endif
 
   server->on("/", http_handleRoot);
   
@@ -630,7 +677,12 @@ void http_setupUpdate(){
         Serial.setDebugOutput(true);
 //        WiFiUDP::stopAll();
         Serial.printf("Update: %s\n", upload.filename.c_str());
+        #if defined(ESP32)
+        uint32_t maxSketchSpace = 0x140000;
+        #endif
+        #if defined(ESP8266)
         uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        #endif
         if(!Update.begin(maxSketchSpace)){//start with max available size
           Update.printError(Serial);
         }
