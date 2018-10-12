@@ -107,7 +107,7 @@ ATM90E26_SPI eic2(D3);
 
 float v1, i1, r1, pf1, v2, i2, r2, pf2;
 short st1, st2;
-int sampleCount = 0;
+int sample_count = 0;
 long curMillis, prevMillis;
 
 
@@ -188,10 +188,10 @@ void loop() {
   curMillis = millis();
 //
   yield();
-  if (sampleCount > 20)
+  if (sample_count > 20)
   {
     sendThingSpeak();
-    sampleCount = 0;
+    sample_count = 0;
   }
   if ((curMillis - prevMillis) > 500)
   {
@@ -200,7 +200,7 @@ void loop() {
   if ((curMillis - prevMillis) > 1000)
   {
     readMeterDisplay();
-    sampleCount++;
+    sample_count++;
   }
   checkPins();
 }
@@ -215,19 +215,35 @@ void checkPins(){
   }
 }
 
+//Set-up accumulators for averaging
+float v1_acc,v2_acc,r1_acc,r2_acc;
+float i1_acc,i2_acc,pf1_acc,pf2_acc;
 
+void resetAcc(){
+  v1_acc = 0.0;
+  v2_acc = 0.0;
+  r1_acc = 0.0;
+  r2_acc = 0.0;
+  i1_acc = 0.0;
+  i2_acc = 0.0;
+  pf1_acc = 0.0;
+  pf2_acc = 0.0;
+}
 
 void sendThingSpeak() {
   //TODO: Compute averages from last n-readings
-  float Vrms1 = v1;
-  float realPower1 = r1;
-  float Crms1 = i1;
-  float powerFactor1 = pf1;
+  float Vrms1 = v1_acc/sample_count;
+  float realPower1 = r1_acc/sample_count;
+  float Crms1 = i1_acc/sample_count;
+  float powerFactor1 = pf1/sample_count;
 
-  float Vrms2 = v2;
-  float realPower2 = r2;
-  float Crms2 = i2;
-  float powerFactor2 = pf2;
+  float Vrms2 = v2_acc/sample_count;
+  float realPower2 = r2_acc/sample_count;
+  float Crms2 = i2_acc/sample_count;
+  float powerFactor2 = pf2_acc/sample_count;
+
+  //Temp values stored, reset accumulators
+  resetAcc();
   if(WiFi.status() == WL_CONNECTED)
   {
      WiFiClient client;
@@ -371,14 +387,11 @@ void saveTSConfig()
 
 }
 
-
-
-
-
-
-
-
-
+/*
+ * Attempt to use stored Wifi config to connect to AP
+ * 20 retries are done before code drops into display
+ * mode
+ */
 void wifi_attemptToConnect(){
 
   if(wifi_ssid[0]==0){
@@ -420,7 +433,14 @@ void wifi_attemptToConnect(){
   
 }
 
-
+/*
+ * Start SoftAP for config purposes
+ * drop into Client mode after
+ * TODO: Fix to run both client/station
+ * and AP mode such that reconfig can 
+ * be done when AP disappears without
+ * reboot
+ */
 void wifi_startSoftAP(){
   uint32_t chipid;
   #if defined(ESP32)
@@ -736,9 +756,26 @@ void setupMetering(){
   delay(1000);
 }
 
-
-
-
+/*
+ * Update accumulator with newly
+ * read data
+ */
+void updateAcc(){
+  v1_acc += v1;
+  v2_acc += v2;
+  i1_acc += i1;
+  i2_acc += i2;
+  //TODO: Use on-ASIC Energy accumulator
+  r1_acc += r1;
+  r2_acc += r2;
+  //TODO: Verify correctness of power factor arithemtic mean
+  pf1_acc += pf1;
+  pf2_acc += pf2;
+}
+/*
+ * Read values from energy ASIC
+ * and display on OLED
+ */
 void readMeterDisplay()
 {
   st1 = eic1.GetMeterStatus();
@@ -752,6 +789,9 @@ void readMeterDisplay()
   i2 = eic2.GetLineCurrent();
   r2 = eic2.GetActivePower();
   pf2 = eic2.GetPowerFactor();
+
+  //Push data into accumulator
+  updateAcc();
 
   u8g2.clearDisplay();
   u8g2.firstPage();
