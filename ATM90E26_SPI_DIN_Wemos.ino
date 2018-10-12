@@ -105,6 +105,7 @@ std::unique_ptr<WebServer> server; //Define webserver //https://github.com/bbx10
 ATM90E26_SPI eic1(D8);
 ATM90E26_SPI eic2(D3);
 
+#define SEND_COUNT 20
 float v1, i1, r1, pf1, v2, i2, r2, pf2;
 short st1, st2;
 int sample_count = 0;
@@ -188,7 +189,7 @@ void loop() {
   curMillis = millis();
 //
   yield();
-  if (sample_count > 20)
+  if (sample_count > SEND_COUNT)
   {
     sendThingSpeak();
     sample_count = 0;
